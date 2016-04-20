@@ -8,5 +8,6 @@ typedef struct Ring {
   Point *points;
 } Ring;
 
+void printRing(Ring *ring);
 
 #endif // RING_H_INCLUDED

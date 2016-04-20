@@ -1,7 +1,32 @@
-ctopojson: ctopojson.o intlist.o  point.o  ring.o  ringlist.o polygon.o polygonlist.o multipolygon.o multipolygonlist.o
-	cc -o ctopojson ctopojson.o intlist.o  point.o  ring.o  ringlist.o polygon.o polygonlist.o multipolygon.o multipolygonlist.o -lgdal
+default: ctopojson
 
-ctopojson.o: ctopojson.c intlist.h  point.h  ring.h  ringlist.h polygon.h
+OFILES = \
+  ctopojson.o \
+  intlist.o  \
+  point.o  \
+  ring.o  \
+  ringlist.o \
+  polygon.o \
+  polygonlist.o \
+  multipolygon.o \
+  multipolygonlist.o \
+  pointhash.o
+
+HFILES = \
+  intlist.h  \
+  point.h  \
+  ring.h  \
+  ringlist.h \
+  polygon.h \
+  polygonlist.h \
+  multipolygon.h \
+  multipolygonlist.h \
+  pointhash.h
+
+ctopojson: ${OFILES}
+	cc -o ctopojson ${OFILES} -lgdal
+
+ctopojson.o: ctopojson.c ${HFILES}
 	cc -c ctopojson.c
 
 intlist.o: intlist.c intlist.h
@@ -30,5 +55,12 @@ multipolygonlist.o: multipolygonlist.c multipolygonlist.h
 
 test: _always ctopojson
 	./ctopojson h12
+
+dtest: _always ctopojson
+	./ctopojson dnstrms
+
+utest: _always ctopojson
+	./ctopojson upstrms
+
 
 .PHONY: _always

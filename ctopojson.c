@@ -8,6 +8,9 @@
 #include "polygonlist.h"
 #include "multipolygon.h"
 #include "multipolygonlist.h"
+#include "pointhash.h"
+
+#define MAXFEATURES -1
 
 char *typeToString(OGRwkbGeometryType type) {
   if (type == wkbUnknown) { return "wkbUnknown"; }
@@ -38,6 +41,7 @@ typedef struct State {
   RingList *ringList;
   PolygonList *polygonList;
   MultiPolygonList *multiPolygonList;
+  PointHash *pointHash;
 } State;
 
 State *newState() {
@@ -45,6 +49,7 @@ State *newState() {
   state->ringList = newRingList(1024);
   state->polygonList = newPolygonList(1024);
   state->multiPolygonList = newMultiPolygonList(32);
+  state->pointHash = newPointHash(5000011); //100003,500003,2000003,5000011,10000019
   return state;
 }
 
@@ -81,6 +86,7 @@ Ring *doublePointArrayToRing(int n, double *x, double *y) {
     ring->points = newPoints;
     ring->n = m;
   }
+  return ring;
 }
 
 int extractRingFromLineString(State *state, OGRGeometryH hGeometry) {
@@ -90,6 +96,10 @@ int extractRingFromLineString(State *state, OGRGeometryH hGeometry) {
                                 state->z, sizeof(double));
 
   Ring *ring = doublePointArrayToRing(npoints, state->x, state->y);
+  int i;
+  for (i=0; i<ring->n; ++i) {
+    getPointIndex(state->pointHash, &(ring->points[i]));
+  }
   return addRing(state->ringList, ring);
 }
 
@@ -140,7 +150,10 @@ void extractRingsFromLayer(State *state, OGRLayerH hLayer) {
   OGRFeatureH hFeature;
   OGRGeometryH hGeometry;
   OGR_L_ResetReading(hLayer);
+  int n = 0;
   while( (hFeature = OGR_L_GetNextFeature(hLayer)) != NULL ) {
+    ++n;
+    if (MAXFEATURES > 0 && n >= MAXFEATURES) { break; }
     hGeometry = OGR_F_GetGeometryRef(hFeature);
     if (hGeometry == NULL) { continue; }
     extractRingsFromGeom(state, hGeometry);
@@ -148,8 +161,6 @@ void extractRingsFromLayer(State *state, OGRLayerH hLayer) {
 }
 
 int main(int argc, char **argv) {
-  int N = 1;
-  
   OGRDataSourceH hDS;
   OGRRegisterAll();
 
@@ -170,12 +181,28 @@ int main(int argc, char **argv) {
   hLayer = OGR_DS_GetLayerByName( hDS, layer );
 
   State *state = newState();
+
   extractRingsFromLayer(state, hLayer);
+  // at this point:
+  //   state->rings contains all the rings from the layer
+  //   state->polygonList contains all the Polygons (each polygon being a list of indices into the ring list;
+  //     for each polygon the first ring is the exterior ring, additional rings are holes)
+  //   state->multiPolygonList contains all the MultiPolygons; each MultiPolygon is essentially a thin
+  //     wrapper around a PolygonList just like the above.
+
+
   printf("In the end, got %1d rings\n", state->ringList->count);
   printf("            and %1d polygons\n", state->polygonList->count);
 
-  int i, j;
+  int npoints=0, i;
+  for (i=0; i<state->ringList->count; ++i) {
+    npoints += state->ringList->rings[i]->n;
+  }
+  printf("            and %1d points\n", npoints);
+  printf("                %1d unique points\n", state->pointHash->count);
 
+  /*
+  int i, j;
   printf("Polygons:\n");
   for (i=0; i<state->polygonList->count; ++i) {
     printf("    %6d: ", i);
@@ -191,6 +218,7 @@ int main(int argc, char **argv) {
       printf("\n");
     }
   }
+  */
 
   return 0;
 }
