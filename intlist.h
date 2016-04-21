@@ -1,15 +1,10 @@
 #ifndef INTLIST_H_INCLUDED
 #define INTLIST_H_INCLUDED
 
-typedef struct IntList {
-  int *v;
-  int size; // allocated size of v array
-  int count;   // number of current populated elements in v array
-} IntList;
+#include "list.h"
 
-IntList *newIntList(int N);
-void expandIntList(IntList *intList);
-int addInt(IntList *intList, int v);
-void printIntList(IntList *intList);
+LIST_DECLARATIONS(IntList, int, newIntList, addInt, expandIntList)
+
+void printListType(IntList *intList);
 
 #endif // INTLIST_H_INCLUDED

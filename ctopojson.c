@@ -13,6 +13,8 @@
 #include "intpair.h"
 #include "arc.h"
 #include "arclist.h"
+#include "archash.h"
+#include "ringarcs.h"
 
 // set this to a positive number to process only the first MAXFEATURES features from input:
 #define MAXFEATURES -1
@@ -30,6 +32,7 @@ typedef struct State {
   MultiPolygonList *multiPolygonList;
   PointHash *pointHash;
   IntPair **pointNeighbors;
+  ArcHash *arcHash;
 } State;
 
 State *newState() {
@@ -39,6 +42,7 @@ State *newState() {
   state->polygonList = newPolygonList(1024);
   state->multiPolygonList = newMultiPolygonList(32);
   state->pointHash = newPointHash(MAXPOINTS);
+  state->arcHash = newArcHash(MAXPOINTS);
   state->pointNeighbors = (IntPair**)malloc(sizeof(IntPair*)*MAXPOINTS);
   for (i=0; i<MAXPOINTS; ++i) {
     state->pointNeighbors[i] = NULL;
@@ -129,14 +133,35 @@ void extractRingsFromLayer(State *state, OGRLayerH hLayer) {
 void joinRings(State *state) {
   int i;
   for (i=0; i<state->ringList->count; ++i) {
-    traverseForJunctions(state->ringList->rings[i], state->pointHash, state->pointNeighbors);
+    traverseForJunctions(state->ringList->elements[i], state->pointHash, state->pointNeighbors);
   }
 }
 
 void cutRings(State *state) {
   int i;
   for (i=0; i<state->ringList->count; ++i) {
-    setJunctions(state->ringList->rings[i], state->pointHash, state->pointNeighbors);
+    setJunctions(state->ringList->elements[i], state->pointHash, state->pointNeighbors);
+  }
+}
+
+void dedupArcs(State *state) {
+  int i, j, ai;
+  Ring *ring;
+  ArcList *arcList;
+  Arc *arc;
+  for (i=0; i<state->ringList->count; ++i) {
+    ring = state->ringList->elements[i];
+    ring->arcList = ringToArcList(ring);
+    for (j=0; j<ring->arcList->count; ++j) {
+      arc = ring->arcList->arcs[j];
+      ai = getArcIndex(state->arcHash, arc);
+      // * have we seen this arc before?
+      //   * if yes, was it in the same direction?
+      //     * if yes, let I = saved index for it
+      //     * if no, let I = ones complement of index for it
+      //   * if no, save it in the next slot, and let I be the index of that slot
+      // * append I to this ring's list of arcs
+    }
   }
 }
 
@@ -172,16 +197,17 @@ int main(int argc, char **argv) {
 
   joinRings(state);
   cutRings(state);
+  dedupArcs(state);
 
-  {
+  if (1) {
     int M = state->ringList->count;
     int i,j;
     ArcList *arcList;
 
     printf("\n----------------------------------------------------------------------\n");
     for (i=0; i<M; ++i) {
-      dumpRing(state->ringList->rings[i]);
-      arcList = ringToArcList(state->ringList->rings[i]);
+      dumpRing(state->ringList->elements[i]);
+      arcList = ringToArcList(state->ringList->elements[i]);
       for (j=0; j<arcList->count; ++j) {
         dumpArc(arcList->arcs[j]);
       }
@@ -191,20 +217,17 @@ int main(int argc, char **argv) {
   }
 
 
-
-
-
-  /*
   printf("In the end, got %1d rings\n", state->ringList->count);
   printf("            and %1d polygons\n", state->polygonList->count);
 
   int npoints=0, i;
   for (i=0; i<state->ringList->count; ++i) {
-    npoints += state->ringList->rings[i]->n;
+    npoints += state->ringList->elements[i]->n;
   }
   printf("            and %1d points\n", npoints);
   printf("                %1d unique points\n", state->pointHash->count);
 
+  /*
   int nj = 0;
   for (i=0; i<MAXPOINTS; ++i) {
     if (state->pointNeighbors[i] == JUNCTION) { ++nj; }

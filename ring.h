@@ -4,12 +4,14 @@
 #include "point.h"
 #include "pointhash.h"
 #include "intpair.h"
+#include "arclist.h"
 
 typedef struct Ring {
   int n;
   Point *points;
   int *junctions;
   int njunctions;
+  ArcList *arcList;
 } Ring;
 
 void printRing(Ring *ring);

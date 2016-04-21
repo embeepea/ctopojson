@@ -2,7 +2,6 @@
 #define ARCLIST_H_INCLUDED
 
 #include "arc.h"
-#include "ring.h"
 #include "intpair.h"
 
 typedef struct ArcList {
@@ -11,6 +10,5 @@ typedef struct ArcList {
   int count; // number of currently populated elements in arcs array
 } ArcList;
 
-ArcList *ringToArcList(Ring *ring);
 
 #endif // ARCLIST_H_INCLUDED

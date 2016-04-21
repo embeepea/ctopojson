@@ -14,7 +14,10 @@ OFILES = \
   pointhash.o \
   intpair.o \
   arc.o \
-  arclist.o
+  arclist.o \
+  archash.o \
+  ringarcs.o \
+  mod.o
 
 HFILES = \
   geomtypes.h \
@@ -26,10 +29,15 @@ HFILES = \
   polygonlist.h \
   multipolygon.h \
   multipolygonlist.h \
+  simplehash.h \
   pointhash.h \
+  archash.h \
   intpair.h \
   arc.h \
-  arclist.h
+  arclist.h \
+  ringarcs.h \
+  mod.h \
+  list.h
 
 ctopojson: ${OFILES}
 	cc -o ctopojson ${OFILES} -lgdal
@@ -64,8 +72,14 @@ multipolygonlist.o: multipolygonlist.c multipolygonlist.h
 pointhash.o: pointhash.c pointhash.h
 	cc -c pointhash.c
 
+archash.o: archash.c archash.h
+	cc -c archash.c
+
 intpair.o: intpair.c intpair.h
 	cc -c intpair.c
+
+geomtypes.o: geomtypes.c geomtypes.h
+	cc -c geomtypes.c
 
 arc.o: arc.c arc.h
 	cc -c arc.c
@@ -73,6 +87,11 @@ arc.o: arc.c arc.h
 arclist.o: arclist.c arclist.h
 	cc -c arclist.c
 
+ringarcs.o: ringarcs.c ringarcs.h
+	cc -c ringarcs.c
+
+mod.o: mod.c mod.h
+	cc -c mod.c
 
 test: _always ctopojson
 	./ctopojson h12
@@ -82,6 +101,9 @@ dtest: _always ctopojson
 
 utest: _always ctopojson
 	./ctopojson upstrms
+
+clean: _always
+	/bin/rm -f *.o ctopojson
 
 
 .PHONY: _always

@@ -19,6 +19,7 @@ Ring *doublePointArrayToRing(int n, double *x, double *y) {
   int m = 0;
   Ring *ring = (Ring*)malloc(sizeof(Ring));
   ring->junctions = NULL;
+  ring->arcList = NULL;
   ring->njunctions = 0;
   ring->n = n;
   ring->points = (Point*)malloc(sizeof(Point)*n);

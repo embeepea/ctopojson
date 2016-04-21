@@ -2,14 +2,8 @@
 #define POINTHASH_H_INCLUDED
 
 #include "point.h"
+#include "simplehash.h"
 
-typedef struct PointHash {
-  int M;         // declared size
-  int count;     // number actually occupied
-  Point **keys;
-} PointHash;
-
-PointHash *newPointHash(int M);
-int getPointIndex(PointHash *pointHash, Point *p);
+SIMPLEHASH_DECLARATIONS(PointHash, Point, newPointHash, getPointIndex)
 
 #endif // POINTHASH_H_INCLUDED

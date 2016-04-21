@@ -5,7 +5,7 @@ RingList *newRingList(int N) {
   RingList *ringList = (RingList*)malloc(sizeof(RingList));
   ringList->size = N;
   ringList->count = 0;
-  ringList->rings = (Ring**)malloc(sizeof(Ring*)*N);
+  ringList->elements = (Ring**)malloc(sizeof(Ring*)*N);
   return ringList;
 }
 
@@ -14,10 +14,10 @@ void expandRingList(RingList *ringList) {
   ringList->size = 2*ringList->size;
   Ring **newRings = (Ring**)malloc(sizeof(Ring*)*ringList->size);
   for (i=0; i<ringList->count; ++i) {
-    newRings[i] = ringList->rings[i];
+    newRings[i] = ringList->elements[i];
   }
-  free(ringList->rings);
-  ringList->rings = newRings;
+  free(ringList->elements);
+  ringList->elements = newRings;
 }
 
 int addRing(RingList *ringList, Ring *ring) {
@@ -26,6 +26,6 @@ int addRing(RingList *ringList, Ring *ring) {
   if (ringList->count >= ringList->size) {
     expandRingList(ringList);
   }
-  ringList->rings[i] = ring;
+  ringList->elements[i] = ring;
   return i;
 }

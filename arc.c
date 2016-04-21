@@ -1,13 +1,7 @@
 #include <stdio.h>
 #include "arc.h"
 #include "point.h"
-
-// mathematical modulus operator (doesn't do weird things for negative i, like % does):
-int mod(int i, int m) {
-  int r = i % m;
-  if (r < 0) { r += m; }
-  return r;
-}
+#include "mod.h"
 
 int arcsEqual(Arc *a1, Arc *a2) {
   if (a1->count != a2->count) { return 0; }
@@ -23,6 +17,7 @@ int arcsEqual(Arc *a1, Arc *a2) {
     }
     i1 = mod(i1 + 1, a1->size);
     i2 = mod(i2 + 1, a2->size);
+    --count;
   }
   if (equal) { return 1; }
 
@@ -37,10 +32,15 @@ int arcsEqual(Arc *a1, Arc *a2) {
     }
     i1 = mod(i1 + 1, a1->size);
     i2 = mod(i2 - 1, a2->size);
+    --count;
   }
   if (equal) { return -1; }
-
   return 0;
+}
+
+void reverseArc(Arc *a) {
+  a->dir = -a->dir;
+  a->first = (a->first + a->count - 1) % (a->size);
 }
 
 void dumpArc(Arc *a) {
@@ -51,10 +51,11 @@ void dumpArc(Arc *a) {
   printf("                ...\n");
   printf("       first:   %1d\n", a->first);
   printf("       count:   %1d\n", a->count);
+  printf("         dir:   %1d\n", a->dir);
   printf("         arc:   [");
   for (i=0; i<a->count; ++i) {
     if (i>0) { printf(", "); }
-    printf("%1d", (a->first + i) % a->size);
+    printf("%1d", mod(a->first + i*a->dir, a->size));
   }
   printf("]\n");
 }
