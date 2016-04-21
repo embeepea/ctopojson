@@ -6,6 +6,7 @@ typedef struct Point {
 } Point;
 
 int pointsEqual(Point *p1, Point *p2);
+int pointsCompareLess(Point *p1, Point *p2);
 void printPoint(Point *p);
 
 #endif // POINT_H_INCLUDED

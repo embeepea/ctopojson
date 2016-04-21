@@ -1,5 +1,6 @@
 #include "ogr_api.h"
 
+#include "geomtypes.h"
 #include "intlist.h"
 #include "point.h"
 #include "ring.h"
@@ -9,29 +10,15 @@
 #include "multipolygon.h"
 #include "multipolygonlist.h"
 #include "pointhash.h"
+#include "intpair.h"
+#include "arc.h"
+#include "arclist.h"
 
+// set this to a positive number to process only the first MAXFEATURES features from input:
 #define MAXFEATURES -1
 
-char *typeToString(OGRwkbGeometryType type) {
-  if (type == wkbUnknown) { return "wkbUnknown"; }
-  if (type == wkbPoint) { return "wkbPoint"; }
-  if (type == wkbLineString) { return "wkbLineString"; }
-  if (type == wkbPolygon) { return "wkbPolygon"; }
-  if (type == wkbMultiPoint) { return "wkbMultiPoint"; }
-  if (type == wkbMultiLineString) { return "wkbMultiLineString"; }
-  if (type == wkbMultiPolygon) { return "wkbMultiPolygon"; }
-  if (type == wkbGeometryCollection) { return "wkbGeometryCollection"; }
-  if (type == wkbNone) { return "wkbNone"; }
-  if (type == wkbLinearRing) { return "wkbLinearRing"; }
-  if (type == wkbPoint25D) { return "wkbPoint25D"; }
-  if (type == wkbLineString25D) { return "wkbLineString25D"; }
-  if (type == wkbPolygon25D) { return "wkbPolygon25D"; }
-  if (type == wkbMultiPoint25D) { return "wkbMultiPoint25D"; }
-  if (type == wkbMultiLineString25D) { return "wkbMultiLineString25D"; }
-  if (type == wkbMultiPolygon25D) { return "wkbMultiPolygon25D"; }
-  if (type == wkbGeometryCollection25D) { return "wkbGeometryCollection25D"; }
-  return "???";
-}
+// max number of distinct points; should be a prime number for optimal hashing experience
+#define MAXPOINTS 5000011  //100003,500003,2000003,5000011,10000019
 
 typedef struct State {
   double x[100000];
@@ -42,14 +29,20 @@ typedef struct State {
   PolygonList *polygonList;
   MultiPolygonList *multiPolygonList;
   PointHash *pointHash;
+  IntPair **pointNeighbors;
 } State;
 
 State *newState() {
+  int i;
   State *state = (State*)malloc(sizeof(State));
   state->ringList = newRingList(1024);
   state->polygonList = newPolygonList(1024);
   state->multiPolygonList = newMultiPolygonList(32);
-  state->pointHash = newPointHash(5000011); //100003,500003,2000003,5000011,10000019
+  state->pointHash = newPointHash(MAXPOINTS);
+  state->pointNeighbors = (IntPair**)malloc(sizeof(IntPair*)*MAXPOINTS);
+  for (i=0; i<MAXPOINTS; ++i) {
+    state->pointNeighbors[i] = NULL;
+  }
   return state;
 }
 
@@ -60,33 +53,6 @@ int double_to_int(double x) {
 void doubleXYToPoint(Point *p, double x, double y) {
   p->x = double_to_int(x);
   p->y = double_to_int(y);
-}
-
-Ring *doublePointArrayToRing(int n, double *x, double *y) {
-  int i, ix, iy;
-  int m = 0;
-  Ring *ring = (Ring*)malloc(sizeof(Ring));
-  ring->n = n;
-  ring->points = (Point*)malloc(sizeof(Point)*n);
-  for (i=0; i<n; ++i) {
-    doubleXYToPoint(&(ring->points[m]), x[i], y[i]);
-    if ((m == 0) || !pointsEqual(&(ring->points[m]), &(ring->points[m-1]))) {
-      // eliminate consecutive identical points
-      ++m;
-    }
-  }
-  // if we got fewer than n distinct points, copy to new points array of correct length
-  if (m < n) {
-    Point *newPoints = (Point*)malloc(sizeof(Point)*m);
-    for (i=0; i<m; ++i) {
-      newPoints[i].x = ring->points[i].x;
-      newPoints[i].y = ring->points[i].y;
-    }
-    free(ring->points);
-    ring->points = newPoints;
-    ring->n = m;
-  }
-  return ring;
 }
 
 int extractRingFromLineString(State *state, OGRGeometryH hGeometry) {
@@ -160,6 +126,20 @@ void extractRingsFromLayer(State *state, OGRLayerH hLayer) {
   }
 }
 
+void joinRings(State *state) {
+  int i;
+  for (i=0; i<state->ringList->count; ++i) {
+    traverseForJunctions(state->ringList->rings[i], state->pointHash, state->pointNeighbors);
+  }
+}
+
+void cutRings(State *state) {
+  int i;
+  for (i=0; i<state->ringList->count; ++i) {
+    setJunctions(state->ringList->rings[i], state->pointHash, state->pointNeighbors);
+  }
+}
+
 int main(int argc, char **argv) {
   OGRDataSourceH hDS;
   OGRRegisterAll();
@@ -190,7 +170,31 @@ int main(int argc, char **argv) {
   //   state->multiPolygonList contains all the MultiPolygons; each MultiPolygon is essentially a thin
   //     wrapper around a PolygonList just like the above.
 
+  joinRings(state);
+  cutRings(state);
 
+  {
+    int M = state->ringList->count;
+    int i,j;
+    ArcList *arcList;
+
+    printf("\n----------------------------------------------------------------------\n");
+    for (i=0; i<M; ++i) {
+      dumpRing(state->ringList->rings[i]);
+      arcList = ringToArcList(state->ringList->rings[i]);
+      for (j=0; j<arcList->count; ++j) {
+        dumpArc(arcList->arcs[j]);
+      }
+      printf("\n----------------------------------------------------------------------\n");
+    }
+
+  }
+
+
+
+
+
+  /*
   printf("In the end, got %1d rings\n", state->ringList->count);
   printf("            and %1d polygons\n", state->polygonList->count);
 
@@ -200,6 +204,13 @@ int main(int argc, char **argv) {
   }
   printf("            and %1d points\n", npoints);
   printf("                %1d unique points\n", state->pointHash->count);
+
+  int nj = 0;
+  for (i=0; i<MAXPOINTS; ++i) {
+    if (state->pointNeighbors[i] == JUNCTION) { ++nj; }
+  }
+  printf("                %1d junctions\n", nj);
+  */
 
   /*
   int i, j;

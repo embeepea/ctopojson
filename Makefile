@@ -2,6 +2,7 @@ default: ctopojson
 
 OFILES = \
   ctopojson.o \
+  geomtypes.o \
   intlist.o  \
   point.o  \
   ring.o  \
@@ -10,9 +11,13 @@ OFILES = \
   polygonlist.o \
   multipolygon.o \
   multipolygonlist.o \
-  pointhash.o
+  pointhash.o \
+  intpair.o \
+  arc.o \
+  arclist.o
 
 HFILES = \
+  geomtypes.h \
   intlist.h  \
   point.h  \
   ring.h  \
@@ -21,7 +26,10 @@ HFILES = \
   polygonlist.h \
   multipolygon.h \
   multipolygonlist.h \
-  pointhash.h
+  pointhash.h \
+  intpair.h \
+  arc.h \
+  arclist.h
 
 ctopojson: ${OFILES}
 	cc -o ctopojson ${OFILES} -lgdal
@@ -52,6 +60,19 @@ multipolygon.o: multipolygon.c multipolygon.h
 
 multipolygonlist.o: multipolygonlist.c multipolygonlist.h
 	cc -c multipolygonlist.c
+
+pointhash.o: pointhash.c pointhash.h
+	cc -c pointhash.c
+
+intpair.o: intpair.c intpair.h
+	cc -c intpair.c
+
+arc.o: arc.c arc.h
+	cc -c arc.c
+
+arclist.o: arclist.c arclist.h
+	cc -c arclist.c
+
 
 test: _always ctopojson
 	./ctopojson h12
