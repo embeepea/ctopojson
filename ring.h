@@ -4,6 +4,7 @@
 #include "point.h"
 #include "pointhash.h"
 #include "intpair.h"
+#include "intlist.h"
 #include "arclist.h"
 
 typedef struct Ring {
@@ -12,6 +13,7 @@ typedef struct Ring {
   int *junctions;
   int njunctions;
   ArcList *arcList;
+  IntList *arcIndices;
 } Ring;
 
 void printRing(Ring *ring);

@@ -7,7 +7,7 @@ ArcList *ringToArcList(Ring *ring) {
     // ring with no points should never happen, but if it does, return empty arc list
     arcList->size = 0;
     arcList->count = 0;
-    arcList->arcs = NULL;
+    arcList->elements = NULL;
     return;
   }
   arcList->size = ring->njunctions;
@@ -15,7 +15,7 @@ ArcList *ringToArcList(Ring *ring) {
     arcList->size = 1;
   }
   arcList->count = arcList->size;
-  arcList->arcs = (Arc**)malloc(sizeof(Arc*)*(arcList->size));
+  arcList->elements = (Arc**)malloc(sizeof(Arc*)*(arcList->size));
   int i;
   Arc *arc;
   if (ring->njunctions > 0) {
@@ -26,7 +26,7 @@ ArcList *ringToArcList(Ring *ring) {
       arc->first = ring->junctions[i];
       arc->count = arcLength(ring->junctions[i], ring->junctions[(i+1)%(ring->njunctions)], arc->size);
       arc->dir = 1;
-      arcList->arcs[i] = arc;
+      arcList->elements[i] = arc;
     }
   } else {
     // here we have a ring -- no junctions
@@ -42,7 +42,7 @@ ArcList *ringToArcList(Ring *ring) {
     }
     arc->count = ring->n + 1;
     arc->dir = 1;
-    arcList->arcs[0] = arc;
+    arcList->elements[0] = arc;
   }
  return arcList;
 }

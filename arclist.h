@@ -3,12 +3,10 @@
 
 #include "arc.h"
 #include "intpair.h"
+#include "list.h"
 
-typedef struct ArcList {
-  Arc **arcs;
-  int size;  // allocated size of arcs array
-  int count; // number of currently populated elements in arcs array
-} ArcList;
+LIST_DECLARATIONS(ArcList, Arc *, newArcList, addArc, expandArcList)
 
+int arcLength(int i, int j, int size);
 
 #endif // ARCLIST_H_INCLUDED

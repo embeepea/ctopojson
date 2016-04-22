@@ -3,6 +3,7 @@
 #include "ring.h"
 #include "pointhash.h"
 #include "intpair.h"
+#include "intlist.h"
 
 void printRing(Ring *ring) {
   printf("Ring(%1d)[", ring->n);
@@ -20,6 +21,7 @@ Ring *doublePointArrayToRing(int n, double *x, double *y) {
   Ring *ring = (Ring*)malloc(sizeof(Ring));
   ring->junctions = NULL;
   ring->arcList = NULL;
+  ring->arcIndices = newIntList(4);
   ring->njunctions = 0;
   ring->n = n;
   ring->points = (Point*)malloc(sizeof(Point)*n);
@@ -119,4 +121,12 @@ void dumpRing(Ring *ring) {
     printf("%1d", ring->junctions[i]);
   }
   printf("]\n");
+
+  printf("        arcs: [");
+  for (i=0; i<ring->arcIndices->count; ++i) {
+    if (i>0) { printf(", "); }
+    printf("%1d", ring->arcIndices->elements[i]);
+  }
+  printf("]\n");
+
 }

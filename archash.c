@@ -15,7 +15,9 @@ static int hashCode(Arc *a) {
 }
 
 static int modularHash(Arc *a, int M) {
-  return (hashCode(a) % 0x7fffffff) % M;
+  int h = hashCode(a);
+  int g = (h & 0x7fffffff) % M;
+  return g;
 }
 
 SIMPLEHASH_IMPLEMENTATION(ArcHash, Arc, newArcHash, getArcIndex, modularHash, arcsEqual)

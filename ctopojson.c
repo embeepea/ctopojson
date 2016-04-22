@@ -22,6 +22,9 @@
 // max number of distinct points; should be a prime number for optimal hashing experience
 #define MAXPOINTS 5000011  //100003,500003,2000003,5000011,10000019
 
+// max number of arcs; should also be a prime number
+#define MAXARCS MAXPOINTS
+
 typedef struct State {
   double x[100000];
   double y[100000];
@@ -32,7 +35,9 @@ typedef struct State {
   MultiPolygonList *multiPolygonList;
   PointHash *pointHash;
   IntPair **pointNeighbors;
-  ArcHash *arcHash;
+  ArcHash *arcHash;  // hash which maps Arcs to indices into the arcIndices array below
+  int *arcIndices;   // gives the index of an Arc in arcList below
+  ArcList *arcList;  // the desired list of arcs being generated
 } State;
 
 State *newState() {
@@ -42,11 +47,12 @@ State *newState() {
   state->polygonList = newPolygonList(1024);
   state->multiPolygonList = newMultiPolygonList(32);
   state->pointHash = newPointHash(MAXPOINTS);
-  state->arcHash = newArcHash(MAXPOINTS);
+  state->arcHash = newArcHash(MAXARCS);
   state->pointNeighbors = (IntPair**)malloc(sizeof(IntPair*)*MAXPOINTS);
-  for (i=0; i<MAXPOINTS; ++i) {
-    state->pointNeighbors[i] = NULL;
-  }
+  for (i=0; i<MAXPOINTS; ++i) { state->pointNeighbors[i] = NULL; }
+  state->arcIndices = (int*)malloc(sizeof(int)*MAXARCS);
+  for (i=0; i<MAXARCS; ++i) { state->arcIndices[i] = -1; }
+  state->arcList = newArcList(1024);
   return state;
 }
 
@@ -102,7 +108,7 @@ void extractRingsFromMultiPolygon(State *state, OGRGeometryH hGeometry) {
   }
 }
 
-void extractRingsFromGeom(State *state, OGRGeometryH hGeometry) {
+void extractRingsFromGeom(State *state, OGRGeometryH hGeometry, int geomIndex) {
   OGRwkbGeometryType gtype = OGR_G_GetGeometryType(hGeometry);
 
   if (hGeometry == NULL) { return; }
@@ -122,11 +128,11 @@ void extractRingsFromLayer(State *state, OGRLayerH hLayer) {
   OGR_L_ResetReading(hLayer);
   int n = 0;
   while( (hFeature = OGR_L_GetNextFeature(hLayer)) != NULL ) {
-    ++n;
     if (MAXFEATURES > 0 && n >= MAXFEATURES) { break; }
     hGeometry = OGR_F_GetGeometryRef(hFeature);
     if (hGeometry == NULL) { continue; }
-    extractRingsFromGeom(state, hGeometry);
+    extractRingsFromGeom(state, hGeometry, n);
+    ++n;
   }
 }
 
@@ -144,23 +150,47 @@ void cutRings(State *state) {
   }
 }
 
+int ones_complement(int x) {
+  return -x - 1; // double-check this!!
+}
+
 void dedupArcs(State *state) {
-  int i, j, ai;
+  int i, j, k, ai, rai;
   Ring *ring;
-  ArcList *arcList;
   Arc *arc;
   for (i=0; i<state->ringList->count; ++i) {
     ring = state->ringList->elements[i];
     ring->arcList = ringToArcList(ring);
     for (j=0; j<ring->arcList->count; ++j) {
-      arc = ring->arcList->arcs[j];
-      ai = getArcIndex(state->arcHash, arc);
       // * have we seen this arc before?
       //   * if yes, was it in the same direction?
       //     * if yes, let I = saved index for it
       //     * if no, let I = ones complement of index for it
       //   * if no, save it in the next slot, and let I be the index of that slot
       // * append I to this ring's list of arcs
+      arc = ring->arcList->elements[j];
+      ai = getArcIndex(state->arcHash, arc);
+      if (state->arcIndices[ai] >= 0) {
+        if (arcsEqual(state->arcList->elements[state->arcIndices[ai]], arc) > 0) {
+          addInt(ring->arcIndices, state->arcIndices[ai]);
+        } else {
+          addInt(ring->arcIndices, ones_complement(state->arcIndices[ai]));
+        }
+      } else {
+        rai = getReverseArcIndex(state->arcHash, arc);
+        if (state->arcIndices[rai] >= 0) {
+          if (arcsEqual(state->arcList->elements[state->arcIndices[rai]], arc) > 0) {
+            addInt(ring->arcIndices, state->arcIndices[rai]);
+          } else {
+            addInt(ring->arcIndices, ones_complement(state->arcIndices[rai]));
+          }
+        } else {
+          // we've not seen this arc before, so add it to our master list
+          k = addArc(state->arcList, arc);
+          state->arcIndices[ai] = k;
+          addInt(ring->arcIndices, k);
+        }
+      }
     }
   }
 }
@@ -209,7 +239,7 @@ int main(int argc, char **argv) {
       dumpRing(state->ringList->elements[i]);
       arcList = ringToArcList(state->ringList->elements[i]);
       for (j=0; j<arcList->count; ++j) {
-        dumpArc(arcList->arcs[j]);
+        dumpArc(arcList->elements[j]);
       }
       printf("\n----------------------------------------------------------------------\n");
     }
@@ -226,6 +256,7 @@ int main(int argc, char **argv) {
   }
   printf("            and %1d points\n", npoints);
   printf("                %1d unique points\n", state->pointHash->count);
+  printf("            and %1d arcss\n", state->arcList->count);
 
   /*
   int nj = 0;
@@ -240,15 +271,15 @@ int main(int argc, char **argv) {
   printf("Polygons:\n");
   for (i=0; i<state->polygonList->count; ++i) {
     printf("    %6d: ", i);
-    printIntList(state->polygonList->polygons[i]->ringIndices);
+    printIntList(state->polygonList->elements[i]->ringIndices);
     printf("\n");
   }
   printf("MultiPolygons:\n");
   for (j=0; j<state->multiPolygonList->count; ++j) {
     printf("    %6d:\n", j);
-    for (i=0; i<state->multiPolygonList->multiPolygons[j]->polygonList->count; ++i) {
+    for (i=0; i<state->multiPolygonList->elements[j]->polygonList->count; ++i) {
       printf("          %6d: ", i);
-      printIntList(state->multiPolygonList->multiPolygons[j]->polygonList->polygons[i]->ringIndices);
+      printIntList(state->multiPolygonList->elements[j]->polygonList->elements[i]->ringIndices);
       printf("\n");
     }
   }

@@ -17,7 +17,9 @@ OFILES = \
   arclist.o \
   archash.o \
   ringarcs.o \
-  mod.o
+  mod.o \
+  layer.o \
+  layerlist.o
 
 HFILES = \
   geomtypes.h \
@@ -37,7 +39,9 @@ HFILES = \
   arclist.h \
   ringarcs.h \
   mod.h \
-  list.h
+  list.h \
+  layer.h \
+  layerlist.h
 
 ctopojson: ${OFILES}
 	cc -o ctopojson ${OFILES} -lgdal
@@ -92,6 +96,12 @@ ringarcs.o: ringarcs.c ringarcs.h
 
 mod.o: mod.c mod.h
 	cc -c mod.c
+
+layer.o: layer.c layer.h
+	cc -c layer.c
+
+layerlist.o: layerlist.c layerlist.h
+	cc -c layerlist.c
 
 test: _always ctopojson
 	./ctopojson h12

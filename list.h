@@ -13,7 +13,7 @@
 
 
 #define LIST_IMPLEMENTATION(ListType, Type, constructor, add, expand) \
-  ListType *constructor(Type N) {                                     \
+  ListType *constructor(int N) {                                      \
     ListType *list = (ListType*)malloc(sizeof(ListType));             \
     list->size = N;                                                   \
     list->count = 0;                                                  \
@@ -30,7 +30,7 @@
     free(list->elements);                                             \
     list->elements = newElements;                                     \
   }                                                                   \
-  int addInt(ListType *list, Type e) {                                \
+  int add(ListType *list, Type e) {                                   \
     int i = list->count;                                              \
     ++(list->count);                                                  \
     if (list->count >= list->size) {                                  \
