@@ -20,6 +20,7 @@ void printRing(Ring *ring);
 Ring *doublePointArrayToRing(int n, double *x, double *y);
 void traverseForJunctions(Ring *ring, PointHash *pointHash, IntPair **pointNeighbors);
 void dumpRing(Ring *ring);
+void printRingArcs(Ring *ring);
 
 IntPair *JUNCTION;
 

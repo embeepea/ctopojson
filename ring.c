@@ -130,3 +130,13 @@ void dumpRing(Ring *ring) {
   printf("]\n");
 
 }
+
+void printRingArcs(Ring *ring) {
+  int i;
+  printf("[");
+  for (i=0; i<ring->arcIndices->count; ++i) {
+    if (i>0) { printf(", "); }
+    printf("%1d", ring->arcIndices->elements[i]);
+  }
+  printf("]");
+}

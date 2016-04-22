@@ -14,3 +14,13 @@ void printIntList(IntList *intList) {
   }
   printf("]");
 }
+
+void outputIntList(FILE *fp, IntList *list) {
+  int i;
+  fprintf(fp,"[");
+  for (i=0; i<list->count; ++i) {
+    if (i>0) { fprintf(fp,","); }
+    fprintf(fp, "%1d", list->elements[i]);
+  }
+  fprintf(fp,"]");
+}

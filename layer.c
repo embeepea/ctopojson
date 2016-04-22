@@ -3,7 +3,6 @@
 
 Layer *newLayer() {
   Layer *layer = (Layer*)malloc(sizeof(Layer));
-  layer->polygonList = newPolygonList(4);
-  layer->multiPolygonList = newMultiPolygonList(4);
+  layer->geomList = newGeomList(4);
   return layer;
 }
