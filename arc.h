@@ -1,6 +1,7 @@
 #ifndef ARC_H_INCLUDED
 #define ARC_H_INCLUDED
 
+#include <stdio.h>
 #include "point.h"
 
 typedef struct Arc {
@@ -14,5 +15,6 @@ typedef struct Arc {
 int arcsEqual(Arc *a1, Arc *a2);
 void reverseArc(Arc *a);
 void dumpArc(Arc *a);
+void outputEncodedArc(FILE *fp, Arc *a);
 
 #endif // ARC_H_INCLUDED

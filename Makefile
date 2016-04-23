@@ -25,7 +25,13 @@ ctopojson: $(OBJS)
 	 rm -f $@.$$$$
 
 test: _always ctopojson
-	@./ctopojson h12
+	@./ctopojson nhucs
+
+square: _always ctopojson
+	@./ctopojson square
+
+huc: _always ctopojson
+	@./ctopojson huc
 
 dtest: _always ctopojson
 	./ctopojson dnstrms

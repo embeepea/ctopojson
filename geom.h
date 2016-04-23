@@ -9,6 +9,7 @@
 
 typedef struct Geom {
   short unsigned int type;
+  char id[64];
   union {
     Polygon *polygon;
     MultiPolygon *multiPolygon;

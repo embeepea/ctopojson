@@ -1,7 +1,8 @@
 #include <stdlib.h>
 #include "ringarcs.h"
 
-ArcList *ringToArcList(Ring *ring) {
+ArcList *ringToArcList(Ring *ring,  int debug) {
+debug=0;
   ArcList *arcList = (ArcList*)malloc(sizeof(ArcList));
   if (ring->n <= 0) {
     // ring with no points should never happen, but if it does, return empty arc list
@@ -11,6 +12,7 @@ ArcList *ringToArcList(Ring *ring) {
     return;
   }
   arcList->size = ring->njunctions;
+if (debug) { printf("ringToArcList: finding %1d junctions/arcs\n", arcList->size); }
   if (ring->njunctions == 0) {
     arcList->size = 1;
   }
@@ -25,6 +27,7 @@ ArcList *ringToArcList(Ring *ring) {
       arc->size = ring->n;
       arc->first = ring->junctions[i];
       arc->count = arcLength(ring->junctions[i], ring->junctions[(i+1)%(ring->njunctions)], arc->size);
+if (debug) { printf("    first=%1d, count=%1d\n", arc->first, arc->count); }
       arc->dir = 1;
       arcList->elements[i] = arc;
     }

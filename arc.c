@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "arc.h"
 #include "point.h"
 #include "mod.h"
@@ -39,15 +40,19 @@ int arcsEqual(Arc *a1, Arc *a2) {
 }
 
 void reverseArc(Arc *a) {
+  if (a->dir > 0) {
+    a->first = (a->first + a->count - 1) % (a->size);
+  } else {
+    a->first = (a->first - a->count + 1) % (a->size);
+  }
   a->dir = -a->dir;
-  a->first = (a->first + a->count - 1) % (a->size);
 }
 
 void dumpArc(Arc *a) {
   int i;
-  printf("Arc:\n");
+  printf("Arc: @ %x\n", a);
   printf("size(points):   %1d\n", a->size);
-  printf("      points:   [%4d] (%10d, %10d)\n", 0, a->points[0].x, a->points[0].y);
+  printf("      points:   [%4d] (%10d, %10d)  {@ %x}\n", 0, a->points[0].x, a->points[0].y, a->points);
   printf("                ...\n");
   printf("       first:   %1d\n", a->first);
   printf("       count:   %1d\n", a->count);
@@ -58,4 +63,21 @@ void dumpArc(Arc *a) {
     printf("%1d", mod(a->first + i*a->dir, a->size));
   }
   printf("]\n");
+}
+
+void outputEncodedArc(FILE *fp, Arc *a) {
+  int i, j, x=0, y=0, xprev=0, yprev=0;
+  fprintf(fp, "[");
+  for (i=0; i<a->count; ++i) {
+    if (i>0) { printf(","); }
+    j = mod(a->first + i*a->dir, a->size);
+    //fprintf(fp,"(%1d,%1d)[%1d,%1d]",
+    //        a->points[j].x, a->points[j].y,
+    //        a->points[j].x - xprev, a->points[j].y - yprev);
+    fprintf(fp,"[%1d,%1d]",
+            a->points[j].x - xprev, a->points[j].y - yprev);
+    xprev = a->points[j].x;
+    yprev = a->points[j].y;
+  }
+  fprintf(fp,"]");
 }

@@ -4,6 +4,6 @@
 #include "arclist.h"
 #include "ring.h"
 
-ArcList *ringToArcList(Ring *ring);
+ArcList *ringToArcList(Ring *ring, int debug);
 
 #endif // RINGARCS_H_INCLUDED

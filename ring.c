@@ -70,7 +70,10 @@ void traverseForJunctions(Ring *ring, PointHash *pointHash, IntPair **pointNeigh
   }
 }
 
-void setJunctions(Ring *ring, PointHash *pointHash, IntPair **pointNeighbors) {
+void setJunctions(Ring *ring, PointHash *pointHash, IntPair **pointNeighbors,
+                  int debug) {
+debug=0;
+if (debug) { printf("setJunctions:\n"); }
   int i, j;
   ring->njunctions = 0;
   for (i=0; i<ring->n; ++i) {
@@ -79,9 +82,11 @@ void setJunctions(Ring *ring, PointHash *pointHash, IntPair **pointNeighbors) {
     }
   }
   if (ring->njunctions > 0) {
+if (debug) { printf("got %1d junctions:\n", ring->njunctions); }
     ring->junctions = (int*)malloc(sizeof(int)*ring->njunctions);
     for (i=0, j=0; i<ring->n; ++i) {
       if (pointNeighbors[getPointIndex(pointHash, &(ring->points[i]))] == JUNCTION) {
+if (debug) { printf("  %1d\n", i); }
         ring->junctions[j++] = i;
       }
     }
@@ -90,10 +95,11 @@ void setJunctions(Ring *ring, PointHash *pointHash, IntPair **pointNeighbors) {
 
 void dumpRing(Ring *ring) {
   int i, j, isjunction;
-  printf("Ring:\n");
+  printf("Ring: @ %x\n", ring);
   printf("           n: %1d\n", ring->n);
   if (ring->n > 0) {
     j = 0;
+    printf("      points: @ %x\n", ring->points);
     for (i=0; i<ring->n; ++i) {
       if (j < ring->njunctions && i == ring->junctions[j]) {
         isjunction = 1;
