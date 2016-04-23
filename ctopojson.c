@@ -156,7 +156,7 @@ void joinRings(State *state) {
 void cutRings(State *state) {
   int i;
   for (i=0; i<state->ringList->count; ++i) {
-    setJunctions(state->ringList->elements[i], state->pointHash, state->pointNeighbors,  /*debug*/i==54127);
+    setJunctions(state->ringList->elements[i], state->pointHash, state->pointNeighbors);
   }
 }
 
@@ -170,14 +170,7 @@ void dedupArcs(State *state) {
   Arc *arc;
   for (i=0; i<state->ringList->count; ++i) {
     ring = state->ringList->elements[i];
-    ring->arcList = ringToArcList(ring,  /*debug*/i==54127);
-if (0&&/*debug*/i==54127) {
-  int j;
-  printf("dedup has arcs:\n");
-    for (j=0; j<ring->arcList->count; ++j) {
-      dumpArc(ring->arcList->elements[j]);
-    }
-}
+    ring->arcList = ringToArcList(ring);
     for (j=0; j<ring->arcList->count; ++j) {
       // * have we seen this arc before?
       //   * if yes, was it in the same direction?
@@ -186,25 +179,15 @@ if (0&&/*debug*/i==54127) {
       //   * if no, save it in the next slot, and let I be the index of that slot
       // * append I to this ring's list of arcs
       arc = ring->arcList->elements[j];
-if (0&&/*debug*/i==54127) { printf("foo at 1, arc->first=%1d\n", arc->first); }
       ai = getArcIndex(state->arcHash, arc);
-if (0&&/*debug*/i==54127) { printf("foo at 2, arc->first=%1d\n", arc->first); }
-if (0&&/*debug*/i==54127) { printf("for arc @ %x, got ai = %1d\n", arc, ai); }
-else { if (0&&/*debug*/ai==2701579) { printf("!!! got ai=2701579 for i=%1d\n", i); } }
       if (state->arcIndices[ai] >= 0) {
-if (0&&/*debug*/i==54127) { printf("at 1\n"); }
-if (0&&/*debug*/i==54127) { printf("foo at 3, arc->first=%1d\n", arc->first); }
         if (arcsEqual(state->arcList->elements[state->arcIndices[ai]], arc) > 0) {
           addInt(ring->arcIndices, state->arcIndices[ai]);
         } else {
           addInt(ring->arcIndices, ones_complement(state->arcIndices[ai]));
         }
       } else {
-if (0&&/*debug*/i==54127) { printf("at 2\n"); }
-if (0&&/*debug*/i==54127) { printf("foo at 4, arc->first=%1d\n", arc->first); }
         rai = getReverseArcIndex(state->arcHash, arc);
-if (0&&/*debug*/i==54127) { printf("foo at 4.1, arc->first=%1d\n", arc->first); }
-if (0&&/*debug*/rai==2701579) { printf("!!! got rai=2701579 for i=%1d\n", i); }
         if (state->arcIndices[rai] >= 0) {
           if (arcsEqual(state->arcList->elements[state->arcIndices[rai]], arc) > 0) {
             addInt(ring->arcIndices, state->arcIndices[rai]);
@@ -212,17 +195,10 @@ if (0&&/*debug*/rai==2701579) { printf("!!! got rai=2701579 for i=%1d\n", i); }
             addInt(ring->arcIndices, ones_complement(state->arcIndices[rai]));
           }
         } else {
-if (0&&/*debug*/i==54127) { printf("at 3\n"); }
-if (0&&/*debug*/i==54127) { printf("foo at 5, arc->first=%1d\n", arc->first); }
           // we've not seen this arc before, so add it to our master list
           k = addArc(state->arcList, arc);
           state->arcIndices[ai] = k;
           addInt(ring->arcIndices, k);
-if (0&&/*debug*/i==54127) {
-  printf("   k=%1d\n", k);
-  dumpArc(state->arcList->elements[k]);
-}
-if (0&&/*debug*/i==54127) { printf("foo at 6, arc->first=%1d\n", arc->first); }
         }
       }
     }
@@ -358,7 +334,7 @@ int main(int argc, char **argv) {
     printf("\n----------------------------------------------------------------------\n");
     for (i=0; i<M; ++i) {
       dumpRing(state->ringList->elements[i]);
-      arcList = ringToArcList(state->ringList->elements[i],    /*nodebug*/0);
+      arcList = ringToArcList(state->ringList->elements[i]);
       for (j=0; j<arcList->count; ++j) {
         dumpArc(arcList->elements[j]);
       }
