@@ -1,5 +1,8 @@
 default: ctopojson
 
+t: t.c
+	cc -o t t.c -lgdal
+
 SRCS = \
   ctopojson.c       geomtypes.c          intlist.c        point.c         \
   ring.c            ringlist.c           polygon.c        polygonlist.c   \
@@ -24,8 +27,11 @@ ctopojson: $(OBJS)
 	 sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
 	 rm -f $@.$$$$
 
+ctest: _always ctopojson
+	@./ctopojson ../nhucs.shp nhucs HUC ../upstrms.shp upstrms FID
+
 test: _always ctopojson
-	@./ctopojson nhucs
+	@./ctopojson ../nhucs.shp nhucs HUC
 
 square: _always ctopojson
 	@./ctopojson square

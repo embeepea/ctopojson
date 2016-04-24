@@ -112,7 +112,7 @@ void extractRingsFromMultiPolygon(State *state, MultiPolygon *multiPolygon, OGRG
   }
 }
 
-void extractRingsFromFeature(State *state, Layer *layer, OGRFeatureH hFeature) {
+void extractRingsFromFeature(State *state, Layer *layer, OGRFeatureH hFeature, int idAttrIndex) {
   OGRGeometryH hGeometry;
   hGeometry = OGR_F_GetGeometryRef(hFeature);
   if (hGeometry == NULL) { return; }
@@ -120,12 +120,12 @@ void extractRingsFromFeature(State *state, Layer *layer, OGRFeatureH hFeature) {
   Geom *geom;
   if (gtype == wkbPolygon) {
     geom = newGeom(GEOM_POLYGON);
-    strcpy(geom->id, OGR_F_GetFieldAsString(hFeature, 1));
+    strcpy(geom->id, OGR_F_GetFieldAsString(hFeature, idAttrIndex));
     extractRingsFromPolygon(state, geom->polygon, hGeometry);
     addGeom(layer->geomList, geom);
   } else if (gtype == wkbMultiPolygon) {
     geom = newGeom(GEOM_MULTIPOLYGON);
-    strcpy(geom->id, OGR_F_GetFieldAsString(hFeature, 1));
+    strcpy(geom->id, OGR_F_GetFieldAsString(hFeature, idAttrIndex));
     extractRingsFromMultiPolygon(state, geom->multiPolygon, hGeometry);
     addGeom(layer->geomList, geom);
   } else {
@@ -133,17 +133,35 @@ void extractRingsFromFeature(State *state, Layer *layer, OGRFeatureH hFeature) {
   }
 }
 
-void extractRingsFromLayer(State *state, OGRLayerH hLayer) {
+void extractRingsFromLayer(State *state, char *fileName, char *layerName, char *fieldName) {
+  OGRDataSourceH hDS;
+  hDS = OGROpen( fileName, FALSE, NULL );
+  if( hDS == NULL ){
+    printf( "Open failed.\n" );
+    exit( 1 );
+  }
+  OGRLayerH hLayer;
+  hLayer = OGR_DS_GetLayerByName( hDS, layerName );
+  OGRFeatureDefnH hFDefn = OGR_L_GetLayerDefn(hLayer);
+  int idAttrIndex = OGR_FD_GetFieldIndex (hFDefn, fieldName);
   OGRFeatureH hFeature;
   Layer *layer = newLayer();
+  strcpy(layer->name, layerName);
   addLayer(state->layerList, layer);
   OGR_L_ResetReading(hLayer);
   int n = 0;
   while( (hFeature = OGR_L_GetNextFeature(hLayer)) != NULL ) {
     if (MAXFEATURES > 0 && n >= MAXFEATURES) { break; }
-    extractRingsFromFeature(state, layer, hFeature);
+    extractRingsFromFeature(state, layer, hFeature, idAttrIndex);
     ++n;
   }
+  OGRReleaseDataSource(hDS);
+  // at this point:
+  //   state->rings contains all the rings from the layer
+  //   state->polygonList contains all the Polygons (each polygon being a list of indices into the ring list;
+  //     for each polygon the first ring is the exterior ring, additional rings are holes)
+  //   state->multiPolygonList contains all the MultiPolygons; each MultiPolygon is essentially a thin
+  //     wrapper around a PolygonList just like the above.
 }
 
 void joinRings(State *state) {
@@ -267,126 +285,123 @@ void output_arcs(FILE *fp, State *state) {
   fprintf(fp, "]");
 }
 
-int main(int argc, char **argv) {
-  OGRDataSourceH hDS;
-  OGRRegisterAll();
+void output_topojson(State *state, FILE *fp) {
+  int i;
+  output_topology_start(fp);
+  output_transform(fp);
+  output_objects_start(fp);
 
-  char *layer = argv[1];
-
-  char shpfile[128];
-
-  sprintf(shpfile, "../%s.shp", layer);
-
-  hDS = OGROpen( shpfile, FALSE, NULL );
-  if( hDS == NULL ){
-    printf( "Open failed.\n" );
-    exit( 1 );
+  for (i=0; i<state->layerList->count; ++i) {
+    if (i>0) { fprintf(fp,","); }
+    Layer *layer = state->layerList->elements[i];
+    fprintf(fp, "\"%s\":", layer->name);
+    outputLayer(stdout, state, layer);
   }
 
-  OGRLayerH hLayer;
+  output_objects_end(fp);
+  output_arcs(fp, state);
+  output_topology_end(fp);
+}
 
-  hLayer = OGR_DS_GetLayerByName( hDS, layer );
+void usage() {
+  printf("ctopojson FILENAME LAYERNAME FIELDNAME ...\n");
+  printf("  accepts any number of FILENAME LAYERNAME FIELDNAME triples\n");
+}
 
-  ////////////////////////////////////////////////////
+int main(int argc, char **argv) {
+  OGRRegisterAll();
 
+  --argc;
+  if (argc % 3 != 0) {
+    usage();
+    exit(-1);
+  }
 
-  // OGRFeatureDefnH hFDefn = OGR_L_GetLayerDefn(hLayer);
-  // int iField;
-  // printf("%1d fields\n", OGR_FD_GetFieldCount(hFDefn));
-  // for( iField = 0; iField < OGR_FD_GetFieldCount(hFDefn); iField++ ) {
-  //     OGRFieldDefnH hFieldDefn = OGR_FD_GetFieldDefn( hFDefn, iField );
-  //     printf(OGR_Fld_GetNameRef(hFDefn));
-  //     printf("\n");
-  //     if( OGR_Fld_GetType(hFieldDefn) == OFTInteger )
-  //       printf( "%s: Integer", OGR_Fld_GetNameRef(hFDefn));
-  //     else if( OGR_Fld_GetType(hFieldDefn) == OFTReal )
-  //       printf( "%s: Double", OGR_Fld_GetNameRef(hFDefn));
-  //     else if( OGR_Fld_GetType(hFieldDefn) == OFTString )
-  //       printf( "%s: String", OGR_Fld_GetNameRef(hFDefn));
-  //     else
-  //       printf( "%s: OTHER", OGR_Fld_GetNameRef(hFDefn));
-  //   }
-
-  ////////////////////////////////////////////////////
-
-
-
-
-
+  int nlayers = argc / 3;
+  int i;
+  char *fileName;
+  char *layerName;
+  char *fieldName;
   State *state = newState();
 
-  extractRingsFromLayer(state, hLayer);
-  // at this point:
-  //   state->rings contains all the rings from the layer
-  //   state->polygonList contains all the Polygons (each polygon being a list of indices into the ring list;
-  //     for each polygon the first ring is the exterior ring, additional rings are holes)
-  //   state->multiPolygonList contains all the MultiPolygons; each MultiPolygon is essentially a thin
-  //     wrapper around a PolygonList just like the above.
+  for (i=0; i<nlayers; ++i) {
+    fileName = argv[3*i+1];
+    layerName = argv[3*i+2];
+    fieldName = argv[3*i+3];
+    extractRingsFromLayer(state, fileName, layerName, fieldName);
+  }
 
   joinRings(state);
   cutRings(state);
   dedupArcs(state);
+  output_topojson(state, stdout);
+  return 0;
+}
 
-  if (0) {
-    int M = state->ringList->count;
-    int i,j;
-    ArcList *arcList;
-    printf("\n----------------------------------------------------------------------\n");
-    for (i=0; i<M; ++i) {
-      dumpRing(state->ringList->elements[i]);
-      arcList = ringToArcList(state->ringList->elements[i]);
-      for (j=0; j<arcList->count; ++j) {
-        dumpArc(arcList->elements[j]);
-      }
-      printf("\n----------------------------------------------------------------------\n");
-    }
-  }
+//  if (0) {
+//    int M = state->ringList->count;
+//    int i,j;
+//    ArcList *arcList;
+//    printf("\n----------------------------------------------------------------------\n");
+//    for (i=0; i<M; ++i) {
+//      dumpRing(state->ringList->elements[i]);
+//      arcList = ringToArcList(state->ringList->elements[i]);
+//      for (j=0; j<arcList->count; ++j) {
+//        dumpArc(arcList->elements[j]);
+//      }
+//      printf("\n----------------------------------------------------------------------\n");
+//    }
+//  }
+//
+//  if (0) {
+//    int i,j;
+//    GeomList *geomList = state->layerList->elements[0]->geomList;
+//    for (i=0; i<geomList->count; ++i) {
+//      Geom *geom = geomList->elements[i];
+//      if (STREQ(geom->id,"060102010201")) {
+//        Polygon *polygon = geom->polygon;
+//        IntList *ringIndices = polygon->ringIndices;
+//        printf("Polygon 060102010201:\n");
+//        printf("  has %1d ring:  #%1d\n", ringIndices->count, ringIndices->elements[0]);
+//        Ring *ring = state->ringList->elements[ringIndices->elements[0]];
+//        dumpRing(ring);
+//        for (j=0; j<ring->arcIndices->count; ++j) {
+//          dumpArc(state->arcList->elements[ring->arcIndices->elements[j]]);
+//        }
+//      }
+//    }
+//    return 0;
+//  }
 
-  if (0) {
-    int i,j;
-    GeomList *geomList = state->layerList->elements[0]->geomList;
-    for (i=0; i<geomList->count; ++i) {
-      Geom *geom = geomList->elements[i];
-      if (STREQ(geom->id,"060102010201")) {
-        Polygon *polygon = geom->polygon;
-        IntList *ringIndices = polygon->ringIndices;
-        printf("Polygon 060102010201:\n");
-        printf("  has %1d ring:  #%1d\n", ringIndices->count, ringIndices->elements[0]);
-        Ring *ring = state->ringList->elements[ringIndices->elements[0]];
-        dumpRing(ring);
-        for (j=0; j<ring->arcIndices->count; ++j) {
-          dumpArc(state->arcList->elements[ring->arcIndices->elements[j]]);
-        }
-      }
-    }
-    return 0;
-  }
+////////////////////////////////////////////////////
+// OGRFeatureDefnH hFDefn = OGR_L_GetLayerDefn(hLayer);
+// int iField;
+// printf("%1d fields\n", OGR_FD_GetFieldCount(hFDefn));
+// for( iField = 0; iField < OGR_FD_GetFieldCount(hFDefn); iField++ ) {
+//   OGRFieldDefnH hFieldDefn = OGR_FD_GetFieldDefn( hFDefn, iField );
+//   printf(OGR_Fld_GetNameRef(hFDefn));
+//   printf("\n");
+//   if( OGR_Fld_GetType(hFieldDefn) == OFTInteger )
+//     printf( "%s: Integer", OGR_Fld_GetNameRef(hFDefn));
+//   else if( OGR_Fld_GetType(hFieldDefn) == OFTReal )
+//     printf( "%s: Double", OGR_Fld_GetNameRef(hFDefn));
+//   else if( OGR_Fld_GetType(hFieldDefn) == OFTString )
+//     printf( "%s: String", OGR_Fld_GetNameRef(hFDefn));
+//   else
+//     printf( "%s: OTHER", OGR_Fld_GetNameRef(hFDefn));
+// }
+// return 0;
+////////////////////////////////////////////////////
 
-  //printf("In the end, got %1d rings\n", state->ringList->count);
-  //printf("            and %1d geoms\n", state->layerList->elements[0]->geomList->count);
-  //int npoints=0, i;
-  //for (i=0; i<state->ringList->count; ++i) {
-  //  npoints += state->ringList->elements[i]->n;
-  //}
-  //printf("            and %1d points\n", npoints);
-  //printf("                %1d unique points\n", state->pointHash->count);
-  //printf("            and %1d arcss\n", state->arcList->count);
-
-  if (1) {
-    FILE *fp = stdout;
-    output_topology_start(fp);
-    output_transform(fp);
-    output_objects_start(fp);
-
-    fprintf(fp, "\"%s\":", "h12");
-    Layer *layer = state->layerList->elements[0];
-    outputLayer(stdout, state, layer);
-
-    output_objects_end(fp);
-    output_arcs(fp, state);
-    output_topology_end(fp);
-  }
-
+//printf("In the end, got %1d rings\n", state->ringList->count);
+//printf("            and %1d geoms\n", state->layerList->elements[0]->geomList->count);
+//int npoints=0, i;
+//for (i=0; i<state->ringList->count; ++i) {
+//  npoints += state->ringList->elements[i]->n;
+//}
+//printf("            and %1d points\n", npoints);
+//printf("                %1d unique points\n", state->pointHash->count);
+//printf("            and %1d arcss\n", state->arcList->count);
 
 //    int i,j,k;
 //    const char *id;
@@ -422,33 +437,32 @@ int main(int argc, char **argv) {
 //      }
 //      
 //    }
+//
+//  /*
+//  int nj = 0;
+//  for (i=0; i<MAXPOINTS; ++i) {
+//    if (state->pointNeighbors[i] == JUNCTION) { ++nj; }
+//  }
+//  printf("                %1d junctions\n", nj);
+//  */
+//
+//  /*
+//  int i, j;
+//  printf("Polygons:\n");
+//  for (i=0; i<state->polygonList->count; ++i) {
+//    printf("    %6d: ", i);
+//    printIntList(state->polygonList->elements[i]->ringIndices);
+//    printf("\n");
+//  }
+//  printf("MultiPolygons:\n");
+//  for (j=0; j<state->multiPolygonList->count; ++j) {
+//    printf("    %6d:\n", j);
+//    for (i=0; i<state->multiPolygonList->elements[j]->polygonList->count; ++i) {
+//      printf("          %6d: ", i);
+//      printIntList(state->multiPolygonList->elements[j]->polygonList->elements[i]->ringIndices);
+//      printf("\n");
+//    }
+//  }
+//  */
 
-  /*
-  int nj = 0;
-  for (i=0; i<MAXPOINTS; ++i) {
-    if (state->pointNeighbors[i] == JUNCTION) { ++nj; }
-  }
-  printf("                %1d junctions\n", nj);
-  */
 
-  /*
-  int i, j;
-  printf("Polygons:\n");
-  for (i=0; i<state->polygonList->count; ++i) {
-    printf("    %6d: ", i);
-    printIntList(state->polygonList->elements[i]->ringIndices);
-    printf("\n");
-  }
-  printf("MultiPolygons:\n");
-  for (j=0; j<state->multiPolygonList->count; ++j) {
-    printf("    %6d:\n", j);
-    for (i=0; i<state->multiPolygonList->elements[j]->polygonList->count; ++i) {
-      printf("          %6d: ", i);
-      printIntList(state->multiPolygonList->elements[j]->polygonList->elements[i]->ringIndices);
-      printf("\n");
-    }
-  }
-  */
-
-  return 0;
-}

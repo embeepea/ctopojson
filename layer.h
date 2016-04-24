@@ -7,6 +7,7 @@
 #include "multipolygonlist.h"
 
 typedef struct Layer {
+  char name[64];
   GeomList *geomList;
 } Layer;
 
